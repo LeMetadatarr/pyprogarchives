@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyprogarchives"
+version = "0.1.0"
+description = "Typed Python client for Prog Archives (progarchives.com)"
+requires-python = ">=3.9"
+dependencies = ["requests>=2.28", "beautifulsoup4>=4.11"]
+
+[project.optional-dependencies]
+stealth = ["curl-cffi"]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pyprogarchives*"]
