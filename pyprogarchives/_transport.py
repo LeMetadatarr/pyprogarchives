@@ -1,25 +1,23 @@
 """HTTP transport for pyprogarchives.
 
-progarchives.com sits behind a Cloudflare challenge. Three transport modes are
-available via the ``PYPROGARCHIVES_TRANSPORT`` environment variable:
+progarchives.com sits behind a Cloudflare challenge. Transport is configurable
+two ways — **constructor kwargs** on :class:`Transport` (or the high-level
+:class:`pyprogarchives.ProgArchives` client), or **environment variables** as
+fallback defaults. Explicit kwargs always win over the environment.
 
-- *(unset)* / ``curl_cffi`` — live fetch with ``curl_cffi`` Chrome TLS
-  impersonation when available (install the ``stealth`` extra), else plain
-  ``requests``. Clears the bot check from most networks.
-- ``requests`` — live fetch with plain ``requests`` (no impersonation).
-- ``wayback`` — do not touch the live site at all; fetch the most recent
-  snapshot from the Internet Archive (Wayback Machine). Useful from networks
-  where Cloudflare serves an unsolvable JS challenge. Archived HTML can be
-  weeks/months stale.
-- ``flaresolverr`` — fetch through a FlareSolverr proxy, which drives a real
-  headless browser to clear the Cloudflare challenge and return **live**
-  HTML. Point it at your instance with ``PYPROGARCHIVES_FLARESOLVERR_URL``
-  (e.g. ``http://192.168.1.116:8191``); setting that URL alone selects this
-  mode automatically.
+Modes:
 
-Independently, set ``PYPROGARCHIVES_WAYBACK_FALLBACK=1`` to transparently fall
-back to the Wayback Machine whenever a live fetch fails (non-2xx or a detected
-Cloudflare challenge). Off by default, so behaviour is predictable.
+- ``curl_cffi`` *(default)* — live fetch with Chrome TLS impersonation when
+  available (install the ``stealth`` extra), else plain ``requests``.
+- ``requests`` — live fetch with plain ``requests``.
+- ``wayback`` — never touch the live site; fetch the latest Internet Archive
+  (Wayback Machine) snapshot. Stale but dependency-free.
+- ``flaresolverr`` — fetch through a FlareSolverr proxy (a headless browser
+  that clears the Cloudflare challenge) and return **live** HTML.
+
+Environment fallbacks: ``PYPROGARCHIVES_TRANSPORT``,
+``PYPROGARCHIVES_FLARESOLVERR_URL``, ``PYPROGARCHIVES_FLARESOLVERR_TIMEOUT``
+(ms), ``PYPROGARCHIVES_WAYBACK_FALLBACK``.
 
 The parsing layer (``parse.py``) is independent of how the HTML was fetched.
 """
@@ -41,31 +39,28 @@ _HEADERS = {
 }
 
 _WAYBACK_AVAILABLE_API = "http://archive.org/wayback/available"
-_session: Any = None
+_VALID_MODES = {"requests", "curl_cffi", "wayback", "flaresolverr"}
 
 
 def _truthy(value: Optional[str]) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def default_session() -> Any:
-    """Return the process-global live HTTP session, creating it on first use."""
-    global _session
-    if _session is None:
-        forced = os.environ.get("PYPROGARCHIVES_TRANSPORT", "").strip().lower()
-        if forced not in {"requests", "wayback"}:
-            try:
-                from curl_cffi import requests as cffi  # type: ignore[import]
-                s = cffi.Session(impersonate="chrome")
-                s.headers.update(_HEADERS)
-                _session = s
-                return _session
-            except ImportError:
-                pass
-        import requests
-        _session = requests.Session()
-        _session.headers.update(_HEADERS)
-    return _session
+def _build_session(prefer_curl: bool) -> Any:
+    """Create a live HTTP session (curl_cffi Chrome impersonation if asked and
+    available, else plain requests)."""
+    if prefer_curl:
+        try:
+            from curl_cffi import requests as cffi  # type: ignore[import]
+            s = cffi.Session(impersonate="chrome")
+            s.headers.update(_HEADERS)
+            return s
+        except ImportError:
+            pass
+    import requests
+    s = requests.Session()
+    s.headers.update(_HEADERS)
+    return s
 
 
 def _is_challenge(text: str) -> bool:
@@ -128,11 +123,6 @@ def wayback_html(url: str, *, timeout: float = 30.0) -> Optional[str]:
     return r.text
 
 
-def flaresolverr_endpoint() -> str:
-    """Return the configured FlareSolverr base URL (``PYPROGARCHIVES_FLARESOLVERR_URL``)."""
-    return os.environ.get("PYPROGARCHIVES_FLARESOLVERR_URL", "").strip()
-
-
 def _flaresolverr_extract(data: dict) -> str:
     """Pull the solved HTML out of a FlareSolverr ``/v1`` response."""
     if data.get("status") != "ok":
@@ -141,18 +131,16 @@ def _flaresolverr_extract(data: dict) -> str:
 
 
 def flaresolverr_html(url: str, endpoint: Optional[str] = None,
-                      *, timeout_ms: Optional[int] = None) -> str:
+                      *, timeout_ms: int = 60000) -> str:
     """Fetch *url* through a FlareSolverr proxy, returning the solved HTML.
 
     FlareSolverr (https://github.com/FlareSolverr/FlareSolverr) drives a real
     headless browser that clears the Cloudflare JS challenge and returns the
     fully-rendered page — so this yields **live** data, unlike the Wayback
-    fallback. Point it at your instance with ``PYPROGARCHIVES_FLARESOLVERR_URL``
-    (e.g. ``http://192.168.1.116:8191``).
+    fallback.
     """
     import requests
-    endpoint = (endpoint or flaresolverr_endpoint() or "http://localhost:8191").rstrip("/")
-    timeout_ms = timeout_ms or int(os.environ.get("PYPROGARCHIVES_FLARESOLVERR_TIMEOUT", "60000"))
+    endpoint = (endpoint or "http://localhost:8191").rstrip("/")
     resp = requests.post(
         f"{endpoint}/v1",
         json={"cmd": "request.get", "url": url, "maxTimeout": timeout_ms},
@@ -162,51 +150,119 @@ def flaresolverr_html(url: str, endpoint: Optional[str] = None,
     return _flaresolverr_extract(resp.json())
 
 
-def get_html(path: str, **params: Any) -> str:
-    """GET ``{BASE}{path}`` and return the response text.
+class Transport:
+    """Resolves *how* a page is fetched, from explicit kwargs with environment
+    fallbacks.
 
-    Transport is chosen by ``PYPROGARCHIVES_TRANSPORT`` (``requests`` /
-    ``curl_cffi`` / ``wayback`` / ``flaresolverr``). If the variable is unset
-    but ``PYPROGARCHIVES_FLARESOLVERR_URL`` is set, FlareSolverr is used
-    automatically. ``PYPROGARCHIVES_WAYBACK_FALLBACK=1`` adds a Wayback fallback
-    on any live failure. See the module docstring.
+    Args:
+        mode:                 ``"requests"`` / ``"curl_cffi"`` / ``"wayback"`` /
+                              ``"flaresolverr"``. ``None`` → resolve from the
+                              environment, then auto (FlareSolverr if a URL is
+                              configured, else curl_cffi).
+        flaresolverr_url:     FlareSolverr base URL, e.g.
+                              ``"http://192.168.1.116:8191"``. Setting this
+                              alone selects the ``flaresolverr`` mode.
+        flaresolverr_timeout_ms: per-request solve budget (default 60000).
+        wayback_fallback:     fall back to the Wayback Machine on any live
+                              failure. ``None`` → read the env flag.
 
-    Raises:
-        the underlying error on a live failure (unless a Wayback fallback
-        succeeds), or ``RuntimeError`` if a ``wayback``-mode lookup finds no
-        snapshot.
+    Example::
+
+        from pyprogarchives import Transport
+        t = Transport(flaresolverr_url="http://192.168.1.116:8191")
+        t = Transport(mode="wayback")          # force the Internet Archive
     """
-    url = path if path.startswith("http") else f"{BASE}{path}"
-    # Wayback / FlareSolverr need the full query string baked into the URL.
-    if params:
-        from urllib.parse import urlencode
-        url = f"{url}?{urlencode(params)}"
 
-    mode = os.environ.get("PYPROGARCHIVES_TRANSPORT", "").strip().lower()
-    if not mode and flaresolverr_endpoint():
-        mode = "flaresolverr"   # auto when a FlareSolverr URL is configured
+    def __init__(self, *, mode: Optional[str] = None,
+                 flaresolverr_url: Optional[str] = None,
+                 flaresolverr_timeout_ms: Optional[int] = None,
+                 wayback_fallback: Optional[bool] = None) -> None:
+        if mode is not None and mode.lower() not in _VALID_MODES:
+            raise ValueError(f"mode must be one of {sorted(_VALID_MODES)} or None, got {mode!r}")
+        self.mode = mode.lower() if mode else None
+        self.flaresolverr_url = flaresolverr_url
+        self.flaresolverr_timeout_ms = flaresolverr_timeout_ms
+        self.wayback_fallback = wayback_fallback
+        self._session: Any = None
 
-    if mode == "wayback":
-        html = wayback_html(url)
-        if html is None:
-            raise RuntimeError(f"no Wayback Machine snapshot available for {url}")
-        return html
+    # -- resolution (explicit kwarg > env > default) -----------------------
 
-    try:
-        if mode == "flaresolverr":
-            html = flaresolverr_html(url)
-            if _is_challenge(html):
-                raise RuntimeError("Cloudflare challenge not solved by FlareSolverr")
-            return html
-        s = default_session()
-        r = s.get(url, timeout=30)
-        r.raise_for_status()
-        if _is_challenge(r.text):
-            raise RuntimeError("Cloudflare challenge served")
-        return r.text
-    except Exception:
-        if _truthy(os.environ.get("PYPROGARCHIVES_WAYBACK_FALLBACK")):
+    def _fs_url(self) -> str:
+        return (self.flaresolverr_url
+                or os.environ.get("PYPROGARCHIVES_FLARESOLVERR_URL", "").strip())
+
+    def _fs_timeout(self) -> int:
+        if self.flaresolverr_timeout_ms is not None:
+            return self.flaresolverr_timeout_ms
+        return int(os.environ.get("PYPROGARCHIVES_FLARESOLVERR_TIMEOUT", "60000"))
+
+    def _resolved_mode(self) -> str:
+        if self.mode:
+            return self.mode
+        env = os.environ.get("PYPROGARCHIVES_TRANSPORT", "").strip().lower()
+        if env:
+            return env
+        if self._fs_url():
+            return "flaresolverr"
+        return "curl_cffi"
+
+    def _wayback_fallback(self) -> bool:
+        if self.wayback_fallback is not None:
+            return self.wayback_fallback
+        return _truthy(os.environ.get("PYPROGARCHIVES_WAYBACK_FALLBACK"))
+
+    def _session_for(self, mode: str) -> Any:
+        if self._session is None:
+            self._session = _build_session(prefer_curl=(mode != "requests"))
+        return self._session
+
+    # -- fetch -------------------------------------------------------------
+
+    def get_html(self, path: str, **params: Any) -> str:
+        """GET ``{BASE}{path}`` (with query *params*) and return the HTML."""
+        url = path if path.startswith("http") else f"{BASE}{path}"
+        if params:
+            from urllib.parse import urlencode
+            url = f"{url}?{urlencode(params)}"
+
+        mode = self._resolved_mode()
+        if mode == "wayback":
             html = wayback_html(url)
-            if html is not None:
+            if html is None:
+                raise RuntimeError(f"no Wayback Machine snapshot available for {url}")
+            return html
+
+        try:
+            if mode == "flaresolverr":
+                html = flaresolverr_html(url, self._fs_url() or None,
+                                         timeout_ms=self._fs_timeout())
+                if _is_challenge(html):
+                    raise RuntimeError("Cloudflare challenge not solved by FlareSolverr")
                 return html
-        raise
+            r = self._session_for(mode).get(url, timeout=30)
+            r.raise_for_status()
+            if _is_challenge(r.text):
+                raise RuntimeError("Cloudflare challenge served")
+            return r.text
+        except Exception:
+            if self._wayback_fallback():
+                html = wayback_html(url)
+                if html is not None:
+                    return html
+            raise
+
+
+_DEFAULT_TRANSPORT: Optional[Transport] = None
+
+
+def default_transport() -> Transport:
+    """Return the shared, environment-driven :class:`Transport`."""
+    global _DEFAULT_TRANSPORT
+    if _DEFAULT_TRANSPORT is None:
+        _DEFAULT_TRANSPORT = Transport()
+    return _DEFAULT_TRANSPORT
+
+
+def get_html(path: str, **params: Any) -> str:
+    """Module-level fetch using the shared env-driven transport (back-compat)."""
+    return default_transport().get_html(path, **params)

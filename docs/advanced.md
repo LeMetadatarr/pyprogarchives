@@ -26,6 +26,35 @@ pip install pyprogarchives[stealth]
 export PYPROGARCHIVES_TRANSPORT=requests   # or: curl_cffi (default), wayback, flaresolverr
 ```
 
+### Configure in code (no env vars)
+
+Every knob is also a constructor kwarg on the `ProgArchives` client (and on
+`Transport`); explicit kwargs always win over the environment:
+
+```python
+import pyprogarchives as pa
+
+# FlareSolverr (live) — setting the URL selects the flaresolverr transport
+client = pa.ProgArchives(flaresolverr_url="http://192.168.1.116:8191")
+genesis = client.fetch_artist(1)
+
+# Force the Internet Archive
+archived = pa.ProgArchives(wayback=True)            # == transport="wayback"
+
+# Try live first, fall back to the archive
+resilient = pa.ProgArchives(flaresolverr_url="http://192.168.1.116:8191",
+                            wayback_fallback=True)
+
+# Or build a Transport yourself and pass it to the functions
+from pyprogarchives import Transport
+t = Transport(mode="flaresolverr", flaresolverr_url="http://192.168.1.116:8191",
+              flaresolverr_timeout_ms=90000)
+bands = pa.get_artists_by_letter("a", transport=t)
+```
+
+The module-level functions (`pa.fetch_artist(...)` etc.) keep using the
+environment-driven default transport.
+
 ### FlareSolverr — solve the challenge and get *live* data
 
 [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) runs a headless

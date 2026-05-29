@@ -40,3 +40,39 @@ def test_flaresolverr_extract_error():
     import pytest
     with pytest.raises(RuntimeError):
         t._flaresolverr_extract({"status": "error", "message": "timeout"})
+
+
+# --- Transport / client configuration (kwargs, no network) ---------------
+
+def _clear_env(monkeypatch):
+    for k in ("PYPROGARCHIVES_TRANSPORT", "PYPROGARCHIVES_FLARESOLVERR_URL",
+              "PYPROGARCHIVES_WAYBACK_FALLBACK"):
+        monkeypatch.delenv(k, raising=False)
+
+
+def test_transport_mode_from_kwargs(monkeypatch):
+    _clear_env(monkeypatch)
+    assert t.Transport()._resolved_mode() == "curl_cffi"
+    assert t.Transport(mode="wayback")._resolved_mode() == "wayback"
+    assert t.Transport(flaresolverr_url="http://x:8191")._resolved_mode() == "flaresolverr"
+
+
+def test_transport_kwarg_beats_env(monkeypatch):
+    monkeypatch.setenv("PYPROGARCHIVES_TRANSPORT", "requests")
+    assert t.Transport(mode="wayback")._resolved_mode() == "wayback"   # explicit wins
+    assert t.Transport()._resolved_mode() == "requests"                # falls back to env
+
+
+def test_transport_rejects_bad_mode():
+    import pytest
+    with pytest.raises(ValueError):
+        t.Transport(mode="nonsense")
+
+
+def test_client_kwargs(monkeypatch):
+    _clear_env(monkeypatch)
+    import pyprogarchives as pa
+    assert pa.ProgArchives(wayback=True).transport._resolved_mode() == "wayback"
+    c = pa.ProgArchives(flaresolverr_url="http://192.168.1.116:8191")
+    assert c.transport._resolved_mode() == "flaresolverr"
+    assert c.transport._fs_url() == "http://192.168.1.116:8191"
