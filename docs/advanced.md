@@ -20,10 +20,33 @@ pip install pyprogarchives[stealth]
 | *(unset)* / `curl_cffi` | Live fetch with Chrome TLS impersonation (default). |
 | `requests` | Live fetch with plain `requests`, no impersonation. |
 | `wayback` | **Do not touch the live site** — fetch the latest snapshot from the Internet Archive (Wayback Machine). |
+| `flaresolverr` | Fetch through a FlareSolverr proxy that solves the Cloudflare challenge in a real browser and returns **live** HTML. |
 
 ```bash
-export PYPROGARCHIVES_TRANSPORT=requests   # or: curl_cffi (default), wayback
+export PYPROGARCHIVES_TRANSPORT=requests   # or: curl_cffi (default), wayback, flaresolverr
 ```
+
+### FlareSolverr — solve the challenge and get *live* data
+
+[FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) runs a headless
+browser that clears the Cloudflare JS challenge. Unlike the Wayback fallback it
+returns **current** pages, so it's the best option if you have an instance
+(it's a one-container service, commonly on port `8191`). Point the client at it:
+
+```bash
+export PYPROGARCHIVES_FLARESOLVERR_URL=http://192.168.1.116:8191
+# setting the URL alone selects flaresolverr transport automatically;
+# PYPROGARCHIVES_FLARESOLVERR_TIMEOUT (ms, default 60000) tunes the solve budget.
+```
+
+```python
+import pyprogarchives as pa
+genesis = pa.fetch_artist(1)        # fetched live, challenge solved by FlareSolverr
+```
+
+`pyprogarchives._transport.flaresolverr_html(url)` is exposed for direct use.
+Combine with `PYPROGARCHIVES_WAYBACK_FALLBACK=1` to fall back to the archive if
+FlareSolverr is down.
 
 ### Wayback Machine — surviving the JS challenge
 

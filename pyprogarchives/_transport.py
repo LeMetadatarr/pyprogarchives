@@ -11,6 +11,11 @@ available via the ``PYPROGARCHIVES_TRANSPORT`` environment variable:
   snapshot from the Internet Archive (Wayback Machine). Useful from networks
   where Cloudflare serves an unsolvable JS challenge. Archived HTML can be
   weeks/months stale.
+- ``flaresolverr`` — fetch through a FlareSolverr proxy, which drives a real
+  headless browser to clear the Cloudflare challenge and return **live**
+  HTML. Point it at your instance with ``PYPROGARCHIVES_FLARESOLVERR_URL``
+  (e.g. ``http://192.168.1.116:8191``); setting that URL alone selects this
+  mode automatically.
 
 Independently, set ``PYPROGARCHIVES_WAYBACK_FALLBACK=1`` to transparently fall
 back to the Wayback Machine whenever a live fetch fails (non-2xx or a detected
@@ -123,25 +128,64 @@ def wayback_html(url: str, *, timeout: float = 30.0) -> Optional[str]:
     return r.text
 
 
+def flaresolverr_endpoint() -> str:
+    """Return the configured FlareSolverr base URL (``PYPROGARCHIVES_FLARESOLVERR_URL``)."""
+    return os.environ.get("PYPROGARCHIVES_FLARESOLVERR_URL", "").strip()
+
+
+def _flaresolverr_extract(data: dict) -> str:
+    """Pull the solved HTML out of a FlareSolverr ``/v1`` response."""
+    if data.get("status") != "ok":
+        raise RuntimeError(f"FlareSolverr error: {data.get('message') or data.get('status')}")
+    return (data.get("solution") or {}).get("response", "")
+
+
+def flaresolverr_html(url: str, endpoint: Optional[str] = None,
+                      *, timeout_ms: Optional[int] = None) -> str:
+    """Fetch *url* through a FlareSolverr proxy, returning the solved HTML.
+
+    FlareSolverr (https://github.com/FlareSolverr/FlareSolverr) drives a real
+    headless browser that clears the Cloudflare JS challenge and returns the
+    fully-rendered page — so this yields **live** data, unlike the Wayback
+    fallback. Point it at your instance with ``PYPROGARCHIVES_FLARESOLVERR_URL``
+    (e.g. ``http://192.168.1.116:8191``).
+    """
+    import requests
+    endpoint = (endpoint or flaresolverr_endpoint() or "http://localhost:8191").rstrip("/")
+    timeout_ms = timeout_ms or int(os.environ.get("PYPROGARCHIVES_FLARESOLVERR_TIMEOUT", "60000"))
+    resp = requests.post(
+        f"{endpoint}/v1",
+        json={"cmd": "request.get", "url": url, "maxTimeout": timeout_ms},
+        timeout=timeout_ms / 1000 + 30,
+    )
+    resp.raise_for_status()
+    return _flaresolverr_extract(resp.json())
+
+
 def get_html(path: str, **params: Any) -> str:
     """GET ``{BASE}{path}`` and return the response text.
 
-    Honours ``PYPROGARCHIVES_TRANSPORT`` (``requests`` / ``curl_cffi`` /
-    ``wayback``) and ``PYPROGARCHIVES_WAYBACK_FALLBACK``. See the module
-    docstring.
+    Transport is chosen by ``PYPROGARCHIVES_TRANSPORT`` (``requests`` /
+    ``curl_cffi`` / ``wayback`` / ``flaresolverr``). If the variable is unset
+    but ``PYPROGARCHIVES_FLARESOLVERR_URL`` is set, FlareSolverr is used
+    automatically. ``PYPROGARCHIVES_WAYBACK_FALLBACK=1`` adds a Wayback fallback
+    on any live failure. See the module docstring.
 
     Raises:
-        the underlying HTTP error on a live non-2xx response (unless a Wayback
-        fallback succeeds), or ``RuntimeError`` if a ``wayback``-mode lookup
-        finds no snapshot.
+        the underlying error on a live failure (unless a Wayback fallback
+        succeeds), or ``RuntimeError`` if a ``wayback``-mode lookup finds no
+        snapshot.
     """
     url = path if path.startswith("http") else f"{BASE}{path}"
-    # Wayback needs the full query string baked into the URL it looks up.
+    # Wayback / FlareSolverr need the full query string baked into the URL.
     if params:
         from urllib.parse import urlencode
         url = f"{url}?{urlencode(params)}"
 
     mode = os.environ.get("PYPROGARCHIVES_TRANSPORT", "").strip().lower()
+    if not mode and flaresolverr_endpoint():
+        mode = "flaresolverr"   # auto when a FlareSolverr URL is configured
+
     if mode == "wayback":
         html = wayback_html(url)
         if html is None:
@@ -149,6 +193,11 @@ def get_html(path: str, **params: Any) -> str:
         return html
 
     try:
+        if mode == "flaresolverr":
+            html = flaresolverr_html(url)
+            if _is_challenge(html):
+                raise RuntimeError("Cloudflare challenge not solved by FlareSolverr")
+            return html
         s = default_session()
         r = s.get(url, timeout=30)
         r.raise_for_status()

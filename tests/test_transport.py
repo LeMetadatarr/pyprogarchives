@@ -29,3 +29,14 @@ def test_truthy():
 def test_challenge_detection():
     assert t._is_challenge("<html><head><title>Just a moment...</title>")
     assert not t._is_challenge("<html><body><div class='grid-container'>")
+
+
+def test_flaresolverr_extract_ok():
+    data = {"status": "ok", "solution": {"status": 200, "response": "<html>live</html>"}}
+    assert t._flaresolverr_extract(data) == "<html>live</html>"
+
+
+def test_flaresolverr_extract_error():
+    import pytest
+    with pytest.raises(RuntimeError):
+        t._flaresolverr_extract({"status": "error", "message": "timeout"})
