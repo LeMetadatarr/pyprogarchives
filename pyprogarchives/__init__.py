@@ -33,12 +33,14 @@ Quick start::
 from pyprogarchives.types import Artist, Album, ArtistDetail
 from pyprogarchives.artists import (
     ArtistNotFound,
+    ProgArchives,
     fetch_artist,
     get_all_artists,
     get_artists_by_letter,
     iter_artists,
     search_artists,
 )
+from pyprogarchives._transport import Transport
 from pyprogarchives.version import __version__
 
 __all__ = [
@@ -46,6 +48,8 @@ __all__ = [
     "Album",
     "ArtistDetail",
     "ArtistNotFound",
+    "ProgArchives",
+    "Transport",
     "fetch_artist",
     "get_all_artists",
     "get_artists_by_letter",
