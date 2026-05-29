@@ -2,8 +2,9 @@
 
 Typed Python client for Prog Archives (progarchives.com): browse the A–Z band
 index, search by name, fetch full band pages (genre, country, biography, rated
-discography), with optional metadatarr provider integration and a dataset row
-builder.
+discography), and a dataset row builder. Pure scraper — the metadatarr
+`MetadataProvider` that consumes it lives in the **metadatarr** repo
+(`metadatarr/resolve/providers/progarchives.py`), not here.
 
 ## Setup
 
@@ -44,9 +45,6 @@ None configured. Source is fully type-annotated with
 - `pyprogarchives/_transport.py` — `get_html()` over a shared session;
   defaults to `curl_cffi` Chrome impersonation, `PYPROGARCHIVES_TRANSPORT=requests`
   forces plain requests.
-- `pyprogarchives/_provider.py` — optional metadatarr provider. Matches
-  `PlaybackType.AUDIO` + genres `{"rock","progressive rock"}`; emits external ids
-  and an `EntityRole.ARTIST` (group) entity.
 - `pyprogarchives/dataset.py` — flat HF row builders.
 - `docs/`, `examples/`, `tests/fixtures/`.
 

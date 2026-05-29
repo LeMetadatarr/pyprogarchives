@@ -65,27 +65,24 @@ Start with **[docs/quickstart.md](docs/quickstart.md)**, then:
 
 - [docs/api.md](docs/api.md) — every function and model field
 - [docs/advanced.md](docs/advanced.md) — Cloudflare/transport, pagination, errors
-- [docs/metadatarr.md](docs/metadatarr.md) — canonical ids, entity lookup, the provider
+- [docs/canonical_ids.md](docs/canonical_ids.md) — canonical ids (how metadatarr consumes this)
 - [docs/dataset.md](docs/dataset.md) — building a Hugging Face dataset
 
 Runnable, numbered scripts live in [examples/](examples/).
 
-## metadatarr integration
+## Canonical ids & metadatarr
+
+This package is a **pure scraper**. It exposes progarchives' stable ids via
+`site_id` and `to_external_ids_dict()`:
 
 ```python
-import pyprogarchives._provider          # registers the provider
-from metadatarr.resolve.base import resolve
-from mediavocab.models.signals import Signals
-from mediavocab import PlaybackType
-
-result = resolve(Signals(
-    artist="Genesis",
-    playback_type=PlaybackType.AUDIO,
-    content_genres=["progressive rock"],
-))
-print(result.external_ids.extra)        # {'progarchives_artist': '1', ...}
+g = pa.search_artists("genesis")[0]
+g.to_external_ids_dict()
+# {'progarchives_artist': '1', 'progarchives_url': 'https://www.progarchives.com/artist.asp?id=1'}
 ```
 
-The provider resolves a band to its stable progarchives id and emits an
-`EntityRole.ARTIST` (group) entity, from which metadatarr derives a deterministic
-canonical entity id. See [docs/metadatarr.md](docs/metadatarr.md).
+The metadatarr resolver **consumes** these — the `MetadataProvider` lives in the
+[metadatarr](../metadatarr) repo (`metadatarr/resolve/providers/progarchives.py`),
+not here, so integration code isn't scattered across client repos. Install both
+packages and metadatarr auto-discovers the provider. See
+[docs/canonical_ids.md](docs/canonical_ids.md).
