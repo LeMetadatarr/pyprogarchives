@@ -25,8 +25,8 @@ stealth = ["curl-cffi"]
 test = ["pytest"]
 
 [project.urls]
-Homepage = "https://github.com/TigreGotico/pyprogarchives"
-Repository = "https://github.com/TigreGotico/pyprogarchives"
+Homepage = "https://github.com/LeMetadatarr/pyprogarchives"
+Repository = "https://github.com/LeMetadatarr/pyprogarchives"
 
 [tool.setuptools.packages.find]
 where = ["."]

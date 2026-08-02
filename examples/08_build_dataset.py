@@ -1,8 +1,8 @@
-"""Example 09 — build flat rows for a Hugging Face dataset.
+"""Example 08 — build flat rows for a Hugging Face dataset.
 
 Run::
 
-    python examples/09_build_dataset.py
+    python examples/08_build_dataset.py
 """
 import pyprogarchives as pa
 from pyprogarchives import dataset

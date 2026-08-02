@@ -14,7 +14,7 @@ an optional [metadatarr](../metadatarr) provider for cross-referencing.
 ```bash
 pip install pyprogarchives
 pip install pyprogarchives[stealth]   # adds curl-cffi, recommended (see below)
-pip install pyprogarchives[dev]       # adds pytest
+pip install pyprogarchives[test]      # adds pytest
 ```
 
 > **Cloudflare:** progarchives.com is fronted by Cloudflare. The client
@@ -90,3 +90,8 @@ the [metadatarr](../metadatarr) repo (`metadatarr/resolve/providers/progarchives
 not here, so integration code does not scatter across client repos. Install
 both packages and metadatarr auto-discovers the provider. See
 [docs/canonical_ids.md](docs/canonical_ids.md).
+
+## Related projects
+
+- [metadatarr](../metadatarr) - the resolver that consumes this client's
+  canonical ids to cross-reference bands and albums against other providers.
