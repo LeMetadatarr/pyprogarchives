@@ -1,15 +1,23 @@
 # Changelog
 
-## [0.0.1a2](https://github.com/TigreGotico/pyprogarchives/tree/0.0.1a2) (2026-07-30)
+## [0.0.1a3](https://github.com/LeMetadatarr/pyprogarchives/tree/0.0.1a3) (2026-08-02)
 
-[Full Changelog](https://github.com/TigreGotico/pyprogarchives/compare/cbb1b87105e04d1e0408b8b41a28713e453a25b5...0.0.1a2)
+[Full Changelog](https://github.com/LeMetadatarr/pyprogarchives/compare/0.0.1a2...0.0.1a3)
 
 **Merged pull requests:**
 
-- docs: rewrite README in Simplified Technical English [\#5](https://github.com/TigreGotico/pyprogarchives/pull/5) ([JarbasAl](https://github.com/JarbasAl))
-- feat: alternative transports for Cloudflare \(FlareSolverr + Wayback\) [\#3](https://github.com/TigreGotico/pyprogarchives/pull/3) ([JarbasAl](https://github.com/JarbasAl))
-- ci: add standard gh-automations workflows [\#2](https://github.com/TigreGotico/pyprogarchives/pull/2) ([JarbasAl](https://github.com/JarbasAl))
-- Configure Renovate [\#1](https://github.com/TigreGotico/pyprogarchives/pull/1) ([renovate[bot]](https://github.com/apps/renovate))
+- docs: QA pass — accuracy, org-move URLs, related projects [\#7](https://github.com/LeMetadatarr/pyprogarchives/pull/7) ([JarbasAl](https://github.com/JarbasAl))
+
+## [0.0.1a2](https://github.com/LeMetadatarr/pyprogarchives/tree/0.0.1a2) (2026-07-30)
+
+[Full Changelog](https://github.com/LeMetadatarr/pyprogarchives/compare/cbb1b87105e04d1e0408b8b41a28713e453a25b5...0.0.1a2)
+
+**Merged pull requests:**
+
+- docs: rewrite README in Simplified Technical English [\#5](https://github.com/LeMetadatarr/pyprogarchives/pull/5) ([JarbasAl](https://github.com/JarbasAl))
+- feat: alternative transports for Cloudflare \(FlareSolverr + Wayback\) [\#3](https://github.com/LeMetadatarr/pyprogarchives/pull/3) ([JarbasAl](https://github.com/JarbasAl))
+- ci: add standard gh-automations workflows [\#2](https://github.com/LeMetadatarr/pyprogarchives/pull/2) ([JarbasAl](https://github.com/JarbasAl))
+- Configure Renovate [\#1](https://github.com/LeMetadatarr/pyprogarchives/pull/1) ([renovate[bot]](https://github.com/apps/renovate))
 
 
 
