@@ -3,7 +3,7 @@
 ## Cloudflare and transport
 
 progarchives.com is fronted by Cloudflare's bot management. The shared
-session (created lazily in `pyprogarchives._transport.default_session`)
+transport (created lazily in `pyprogarchives._transport.default_transport`)
 defaults to **`curl_cffi` with Chrome TLS impersonation** when the `stealth`
 extra is installed. That alone clears the check from most networks.
 
