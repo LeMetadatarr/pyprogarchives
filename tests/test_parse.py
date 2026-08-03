@@ -55,3 +55,12 @@ def test_parse_artist_albums():
 
 def test_empty_listing():
     assert parse_listing("<html><body>nothing</body></html>") == []
+
+
+def test_parse_listing_digit_letter():
+    """The '0' listing groups every digit-first band (real page, recorded
+    2026-08-03 via the Wayback Machine)."""
+    artists = parse_listing(_read("listing_digit.html"))
+    assert len(artists) == 70
+    names = {a.name for a in artists}
+    assert {"10CC", "1974", "12TWELVE", "10000 RUSSOS"} <= names
