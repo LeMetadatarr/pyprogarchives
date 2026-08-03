@@ -100,7 +100,9 @@ def search_artists(query: str, limit: Optional[int] = None, *,
     tokens = [t for t in query.lower().split() if t]
     if not tokens:
         return []
-    initials = {t[0] for t in tokens if t[0] in LETTERS}
+    # progarchives files every digit-first band under letter "0" (e.g. "10CC",
+    # "1974"), not under its literal leading digit.
+    initials = {("0" if t[0].isdigit() else t[0]) for t in tokens if t[0].isdigit() or t[0] in LETTERS}
     seen: Dict[int, Artist] = {}
     for letter in sorted(initials):
         for a in get_artists_by_letter(letter, transport=transport):
