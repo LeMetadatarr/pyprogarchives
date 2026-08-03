@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.1a4](https://github.com/LeMetadatarr/pyprogarchives/tree/0.0.1a4) (2026-08-03)
+
+[Full Changelog](https://github.com/LeMetadatarr/pyprogarchives/compare/0.0.1a3...0.0.1a4)
+
+**Merged pull requests:**
+
+- ci: grant conventional-label workflow write permissions [\#8](https://github.com/LeMetadatarr/pyprogarchives/pull/8) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [0.0.1a3](https://github.com/LeMetadatarr/pyprogarchives/tree/0.0.1a3) (2026-08-02)
 
 [Full Changelog](https://github.com/LeMetadatarr/pyprogarchives/compare/0.0.1a2...0.0.1a3)
