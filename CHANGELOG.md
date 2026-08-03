@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.1a5](https://github.com/LeMetadatarr/pyprogarchives/tree/0.0.1a5) (2026-08-03)
+
+[Full Changelog](https://github.com/LeMetadatarr/pyprogarchives/compare/0.0.1a4...0.0.1a5)
+
+**Merged pull requests:**
+
+- deep: bugs, real-fixture tests, docs/examples [\#9](https://github.com/LeMetadatarr/pyprogarchives/pull/9) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [0.0.1a4](https://github.com/LeMetadatarr/pyprogarchives/tree/0.0.1a4) (2026-08-03)
 
 [Full Changelog](https://github.com/LeMetadatarr/pyprogarchives/compare/0.0.1a3...0.0.1a4)
